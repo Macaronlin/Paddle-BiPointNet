@@ -26,11 +26,11 @@ def parse_args():
     parser.add_argument("--weight_decay", type=float, default=1e-4, help="weight decay")
     parser.add_argument("--log_freq", type=int, default=1)
     parser.add_argument("--verbose", type=int, default=1)
-    parser.add_argument("--model_path", type=str, default="./pointnet_0.8930.pdparams")
+    parser.add_argument("--model_path", type=str, default="./bipointnet.pdparams")
     parser.add_argument(
         "--data_dir", type=str, default="/mnt/data/sata/ssd/datasets/modelnet40_normal_resampled",
     )
-
+    parser.add_argument("--bnn", action='store_true')
     return parser.parse_args()
 
 
@@ -45,7 +45,15 @@ def test(args):
     )
 
     model = PointNetClassifier()
-
+    if args.bnn:
+        import basic
+        fp_layers = [id(model.feat.input_transfrom.conv1), id(model.feat.conv1), id(model.fc3)]
+        model = basic._to_bi_function(model, fp_layers=fp_layers)
+        def func(model):
+            if hasattr(model, "scale_weight_init"):
+                model.scale_weight_init = True
+        model.apply(func)
+        
     loss_fn = CrossEntropyMatrixRegularization()
     metrics = Accuracy()
 

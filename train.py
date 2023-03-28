@@ -56,7 +56,9 @@ def train(args):
     model = PointNetClassifier()
     if args.bnn:
         import basic
-        fp_layers = [id(model.feat.input_transfrom.conv1), id(model.fc3)]
+        model_state_dict = paddle.load(path='pointnet_0.8930.pdparams')
+        model.set_state_dict(model_state_dict)
+        fp_layers = [id(model.feat.input_transfrom.conv1), id(model.feat.conv1), id(model.fc3)]
         print(id(model))
         model = basic._to_bi_function(model, fp_layers=fp_layers)
         print(id(model))
@@ -66,6 +68,7 @@ def train(args):
         learning_rate=args.learning_rate,
         T_max=args.max_epochs,
     )
+
     optimizer = Adam(
         learning_rate=scheduler,
         parameters=model.parameters(),
@@ -75,23 +78,11 @@ def train(args):
     metrics = Accuracy()
 
     best_test_acc = 0
-    for epoch in range(args.max_epochs):
-        # 先 valid 一下
-        if epoch == 0:
-            metrics.reset()
-            model.eval()
-            for batch_id, data in enumerate(test_loader):
-                x, y = data
-                pred, trans_input, trans_feat = model(x)
-                correct = metrics.compute(pred, y)
-                metrics.update(correct)
-            test_acc = metrics.accumulate()
-            print("Test epoch: {}, acc is: {}".format(epoch, test_acc))
-        
+    for epoch in range(args.max_epochs):        
         metrics.reset()
-
         model.train()
         for batch_id, data in enumerate(train_loader):
+            optimizer.clear_grad()
             x, y = data
             pred, trans_input, trans_feat = model(x)
 
@@ -108,7 +99,7 @@ def train(args):
                     )
                 )
             optimizer.step()
-            optimizer.clear_grad()
+            
         scheduler.step()
 
         metrics.reset()

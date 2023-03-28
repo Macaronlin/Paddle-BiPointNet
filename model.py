@@ -29,12 +29,14 @@ class TNet(nn.Layer):
         self.iden = paddle.eye(self.k, self.k, dtype=paddle.float32)
 
     def forward(self, x):
+        B, D, N = x.shape
+
         x = self.act_function(self.bn1(self.conv1(x)))
         x = self.act_function(self.bn2(self.conv2(x)))
 
         if self.bnn:
             x = self.bn3(self.conv3(x))
-            x = paddle.max(x, 2, keepdim=True) + offset_map[x.shape[-1]]
+            x = paddle.max(x, 2, keepdim=True) + offset_map[N]
         else:
             x = self.act_function(self.bn3(self.conv3(x)))
             x = paddle.max(x, 2, keepdim=True)
@@ -93,7 +95,7 @@ class PointNetEncoder(nn.Layer):
             x = x[:, :, :3]
         x = paddle.bmm(x, trans_input)
         if D > 3:
-            x = paddle.cat([x, feature], dim=2)
+            x = paddle.concat([x, feature], axis=2)
         x = paddle.transpose(x, (0, 2, 1))
         x = self.act_function(self.bn1(self.conv1(x)))
         
